@@ -1,0 +1,16 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/.venv/
+backend/data/
+backend/static/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+.playwright-mcp/
+*.egg-info/
+docs/
+.DS_Store
+assistente de daily.md
+.vscode

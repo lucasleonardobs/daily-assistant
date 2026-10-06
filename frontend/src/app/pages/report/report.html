@@ -1,0 +1,131 @@
+<div class="wrap">
+  @if (!loading() && !report()) {
+    <div class="card empty">
+      <h1>Ainda não há report hoje</h1>
+      <span class="muted">{{ session.isManager() ? 'Gere o report a partir do painel.' : 'O gestor do time gera o report a partir do painel.' }}</span>
+    </div>
+  }
+
+  @if (report(); as r) {
+    <div class="row-between">
+      <div class="stack tight">
+        <h1>Report do dia</h1>
+        <span class="muted nowrap">Versão {{ r.version }} · gerado às {{ timeOf(r.generated_at) }} · {{ r.responded }} de {{ session.today()?.total }} check-ins</span>
+      </div>
+      <div class="row">
+        <div class="versions">
+          @for (v of versions(); track v.id) {
+            <button [class.on]="v.id === r.id" (click)="select(v.id)">v{{ v.version }} · {{ timeOf(v.generated_at) }}</button>
+          }
+        </div>
+        @if (session.isManager()) {
+          <button class="btn btn-sm btn-ghost" (click)="generator.generate()" [disabled]="generator.generating()">
+            {{ generator.generating() ? 'Gerando…' : 'Regerar' }}
+          </button>
+        }
+      </div>
+    </div>
+    @if (generator.error(); as err) { <div class="error-box">{{ err }}</div> }
+    @if (r.incomplete_review) {
+      <div class="warn">Revisão incompleta: este report saiu após 3 revisões automáticas, com itens que merecem conferência.</div>
+    }
+
+    <section class="actions">
+      <div class="row-between center">
+        <h2>Precisa da sua ação</h2>
+        <span class="hint">{{ r.content.actions.length }} {{ r.content.actions.length === 1 ? "item" : "itens" }} · o agente sugere, você decide</span>
+      </div>
+      @for (a of r.content.actions; track $index) {
+        <div class="action">
+          <div class="chips">
+            <span class="chip" [class.chip-bad]="a.high_priority" [class.chip-warn]="!a.high_priority">{{ a.tag }}</span>
+            <span class="chip dark">Dono sugerido: {{ a.suggested_owner }}</span>
+          </div>
+          <span class="action-text">{{ a.text }}</span>
+          <div class="row-between center">
+            <span class="evidence">Evidência:
+              @for (e of labels(a.evidence_ids); track e.id; let last = $last) {
+                <button class="ev" (click)="open(e.id)">{{ e.label }}</button>{{ last ? '' : ', ' }}
+              }
+            </span>
+            @if (session.isManager()) {
+              <div class="row tight-row">
+                <button class="vote" [class.on]="r.feedback[$index] === 'useful'" (click)="vote($index, 'useful')">Útil</button>
+                <button class="vote" [class.on-neg]="r.feedback[$index] === 'not_useful'" (click)="vote($index, 'not_useful')">Não útil</button>
+              </div>
+            }
+          </div>
+        </div>
+      } @empty { <span class="hint">Nada exige ação hoje.</span> }
+    </section>
+
+    <div class="grid">
+      <section class="card card-pad stack">
+        <h2>Progresso</h2>
+        @for (t of r.content.progress; track t.theme) {
+          <div class="stack tight">
+            <span class="theme">{{ t.theme }}</span>
+            @for (it of t.items; track it.text) {
+              <div class="line"><span>{{ it.text }}</span>
+                @for (e of labels(it.evidence_ids).slice(0, 1); track e.id) { <button class="ev sm" (click)="open(e.id)">{{ e.label }}</button> }
+              </div>
+            }
+          </div>
+        } @empty { <span class="muted small">Sem progresso registrado.</span> }
+      </section>
+
+      <section class="card card-pad stack">
+        <h2>Impeditivos</h2>
+        @for (g of groups(); track g.label) {
+          <div class="stack tight">
+            <span class="theme gray">{{ g.label }}</span>
+            @for (i of g.items; track i.summary) {
+              <div class="line center">
+                <span class="chip sev" [class]="'chip sev ' + severity[i.severity].cls">{{ severity[i.severity].label }}</span>
+                <span class="grow">{{ i.summary }}</span>
+                <span class="meta">{{ i.age_label }}</span>
+              </div>
+            }
+          </div>
+        } @empty { <span class="muted small">Nenhum impeditivo.</span> }
+      </section>
+
+      <section class="card card-pad stack">
+        <h2>Riscos</h2>
+        @for (k of r.content.risks; track k.text) {
+          <div class="risk"><span class="risk-type">{{ k.type }}</span><span>{{ k.text }}</span></div>
+        } @empty { <span class="muted small">Nenhum risco identificado.</span> }
+      </section>
+
+      <section class="card card-pad stack">
+        <h2>Participação</h2>
+        <div class="stack tight"><span class="ok-text">Responderam ({{ r.content.participation.responded.length }})</span>
+          <span>{{ r.content.participation.responded.join(', ') || '—' }}</span></div>
+        <div class="stack tight"><span class="theme gray">Não responderam</span>
+          <span>{{ r.content.participation.pending.join(', ') || 'Todos responderam' }}</span></div>
+        <span class="meta">O report não faz inferências sobre o trabalho de quem não respondeu.</span>
+      </section>
+    </div>
+
+    <section class="card" id="people">
+      <div class="card-head"><h2>Detalhe por pessoa</h2></div>
+      @for (p of r.content.people; track p.checkin_id) {
+        <div class="person-row">
+          <button class="person-btn" [class.open]="expanded() === p.checkin_id" (click)="toggle(p.checkin_id)">
+            <div class="avatar sm">{{ initials(p.name) }}</div>
+            <span class="grow strong">{{ p.name }}</span>
+            <span class="muted small">check-in às {{ timeOf(p.confirmed_at) }}</span>
+            <span class="toggle">{{ expanded() === p.checkin_id ? 'Fechar' : 'Abrir' }}</span>
+          </button>
+          @if (expanded() === p.checkin_id) {
+            <div class="detail">
+              <span class="k">Feito</span><span>{{ p.done }}</span>
+              <span class="k">Hoje</span><span>{{ p.planned }}</span>
+              <span class="k">Impeditivo</span><span>{{ p.blocker }}</span>
+            </div>
+          }
+        </div>
+      } @empty { <div class="card-pad muted small">Ninguém respondeu ainda.</div> }
+    </section>
+  }
+</div>

@@ -1,0 +1,86 @@
+@if (today(); as t) {
+  <div class="stack">
+    <div class="row-between">
+      <div class="stack tight">
+        <h1>Painel do time</h1>
+        <span class="muted">Quem já respondeu hoje e o que está travando.</span>
+      </div>
+      <div class="row">
+        @if (t.latest_report_id) {
+          <a class="btn btn-ghost" [routerLink]="['/report']" [queryParams]="{ id: t.latest_report_id }">Ver último report</a>
+        }
+        <button class="btn" (click)="generator.generate()" [disabled]="generator.generating()">
+          Gerar report · {{ t.responded }}/{{ t.total }}
+        </button>
+      </div>
+    </div>
+
+    @if (generator.generating()) {
+      <div class="progress-box">
+        <strong>Gerando report com {{ t.responded }} check-ins…</strong>
+        <div class="steps">
+          @for (s of steps; track s; let i = $index) {
+            <span class="step" [class.done]="i < generator.step()" [class.now]="i === generator.step()">{{ s }}</span>
+          }
+        </div>
+      </div>
+    }
+    @if (generator.error(); as err) { <div class="error-box">{{ err }}</div> }
+
+    <div class="cols">
+      <section class="card status">
+        <div class="card-head col">
+          <div class="row-between tight-row"><h2>Status do dia</h2><span class="muted small"><b>{{ t.responded }}</b> de {{ t.total }}</span></div>
+          <div class="bar"><div [style.width.%]="pct()"></div></div>
+        </div>
+        @for (m of t.members; track m.member_id) {
+          <div class="person">
+            <div class="avatar">{{ initials(m.name) }}</div>
+            <span class="name">{{ m.name }}</span>
+            <span class="pill" [class.pill-ok]="m.responded">{{ m.responded ? 'Respondeu ' + timeOf(m.confirmed_at!) : 'Pendente' }}</span>
+          </div>
+        }
+        <div class="foot">Sem lembretes automáticos. Fale com quem faltar pelo canal que o time já usa.</div>
+      </section>
+
+      <section class="card imps">
+        <div class="card-head">
+          <h2>Impeditivos abertos</h2>
+          <span class="muted small">Acima de {{ t.aged_threshold_days }} dias úteis sobem para o topo do report</span>
+        </div>
+        @for (i of t.impediments; track i.id) {
+          <div class="imp">
+            <div class="imp-main">
+              <div class="stack tight">
+                <span class="imp-title">{{ i.summary }}</span>
+                <span class="muted small">{{ i.reporter }} · {{ category[i.category] }}@if (i.needs_from) { · precisa de {{ i.needs_from }} }</span>
+              </div>
+              <div class="row">
+                <span class="pill" [class.pill-bad]="i.aged">{{ i.age_label }}</span>
+                <select [class]="'sev ' + severity[i.severity].cls" [value]="i.severity" (change)="setSeverity(i.id, $any($event.target).value)">
+                  @for (s of severityKeys; track s) { <option [value]="s" [selected]="s === i.severity">{{ severity[s].label }}</option> }
+                </select>
+                <button class="link-btn" (click)="startResolve(i.id)">Resolver</button>
+              </div>
+            </div>
+            @if (resolving() === i.id) {
+              <div class="resolve">
+                <input [(ngModel)]="note" placeholder="Nota opcional (ex.: infra reiniciou o cluster)" />
+                <button class="btn btn-sm ok" (click)="confirmResolve(i.id)">Marcar resolvido</button>
+                <button class="link-btn gray" (click)="resolving.set(null)">Cancelar</button>
+              </div>
+            }
+          </div>
+        } @empty { <div class="foot">Nenhum impeditivo aberto.</div> }
+        @if (t.resolved_today?.length) {
+          <div class="resolved">
+            <span class="eyebrow">Resolvidos hoje</span>
+            @for (r of t.resolved_today; track r.id) {
+              <div class="row small"><span class="ok-text">Resolvido</span><s>{{ r.summary }}</s>@if (r.note) { <span>· {{ r.note }}</span> }</div>
+            }
+          </div>
+        }
+      </section>
+    </div>
+  </div>
+}

@@ -1,0 +1,24 @@
+.tight { display: flex; flex-direction: column; gap: 4px; }
+.small { font-size: 13px; }
+.progress-box { background: var(--navy); color: #fff; border-radius: 18px; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;
+  strong { font-size: 16px; font-weight: 800; } }
+.steps { display: flex; gap: 8px; flex-wrap: wrap; }
+.step { font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 8px; background: var(--navy-2); color: #7f8db8;
+  &.done { background: var(--brand); color: #fff; } &.now { background: var(--cyan); color: var(--navy); } }
+.cols { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.status { flex: 1 1 300px; max-width: 100%; }
+.imps { flex: 2 1 460px; min-width: 0; }
+.col { flex-direction: column; align-items: stretch; }
+.tight-row { align-items: baseline; }
+.bar { height: 8px; border-radius: 99px; background: var(--line-soft); overflow: hidden; div { height: 100%; background: var(--brand); border-radius: 99px; } }
+.person { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #f1f3f8; .name { flex: 1; font-size: 15px; font-weight: 600; } }
+.foot { padding: 14px 20px; font-size: 13px; color: var(--muted); line-height: 1.45; }
+.imp { padding: 16px 20px; border-bottom: 1px solid #f1f3f8; display: flex; flex-direction: column; gap: 12px; }
+.imp-main { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; > .tight { min-width: 220px; flex: 1; } }
+.imp-title { font-size: 15px; font-weight: 700; line-height: 1.4; }
+.sev { border: none; border-radius: 8px; padding: 5px 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.resolve { display: flex; gap: 8px; flex-wrap: wrap; background: var(--surface-alt); border-radius: 12px; padding: 12px; input { flex: 1; min-width: 200px; } }
+.btn.ok { background: var(--ok); }
+.gray { color: var(--muted); }
+.resolved { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; background: #fafbfd; color: var(--muted); }
+.ok-text { color: var(--ok-fg); font-weight: 700; }

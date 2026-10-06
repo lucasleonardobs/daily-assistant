@@ -1,0 +1,9 @@
+.wrap { display: flex; flex-direction: column; gap: 20px; max-width: 880px; width: 100%; }
+.tight { display: flex; flex-direction: column; gap: 2px; }
+.small { font-size: 14px; } .grow { flex: 1; } .end { justify-content: flex-end; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+.ok-box { background: var(--ok-bg); color: var(--ok-fg); border-radius: 12px; padding: 12px 16px; font-weight: 700; }
+.member { padding: 10px 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f3f8; strong { font-size: 15px; font-weight: 600; } }
+.avatar.me { background: var(--cyan); color: var(--navy); }
+.gray { color: var(--muted); }
+.add { padding: 16px 24px; display: flex; gap: 10px; flex-wrap: wrap; input { flex: 1; min-width: 160px; } .wide { flex: 1.4; min-width: 200px; } }

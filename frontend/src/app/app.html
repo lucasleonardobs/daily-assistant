@@ -1,0 +1,67 @@
+<div class="layout">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">bv</div>
+      <div class="brand-text"><strong>Daily</strong><span>assíncrona</span></div>
+    </div>
+
+    @if (session.me()) {
+      <nav>
+        @for (item of nav(); track item.path) {
+          <a class="nav-item" [routerLink]="item.path" routerLinkActive="active">
+            <span>{{ item.label }}</span><span class="badge">{{ item.badge }}</span>
+          </a>
+        }
+      </nav>
+    }
+
+    <div class="who">
+      @if (session.devUsers().length) {
+        <label class="eyebrow">Visualizar como (dev)</label>
+        <select [value]="session.devEmail()" (change)="onUser($any($event.target).value)">
+          @for (u of session.devUsers(); track u.email) {
+            <option [value]="u.email" [selected]="u.email === session.devEmail()">
+              {{ u.name }} · {{ u.roles.includes('manager') ? 'Gestor' : 'Membro' }}
+            </option>
+          }
+        </select>
+      }
+      @if (session.me(); as me) {
+        <div class="row">
+          <div class="avatar cyan">{{ initials(me.name) }}</div>
+          <div class="who-text">
+            <strong>{{ me.name }}</strong>
+            <span>{{ session.isManager() ? 'Gestor' : 'Membro' }} · {{ session.membership()?.team_name }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <main>
+    @if (session.me()) {
+      <header class="top">
+        <div class="row">
+          <select class="team-select" [value]="session.teamId()" (change)="onTeam($any($event.target).value)">
+            @for (m of session.me()!.memberships; track m.team_id) {
+              <option [value]="m.team_id" [selected]="m.team_id === session.teamId()">{{ m.team_name }}</option>
+            }
+          </select>
+          <span class="muted small">{{ dateLabel() }}</span>
+        </div>
+        @if (session.today(); as t) {
+          <div class="pill pill-ok live"><span class="dot"></span>{{ t.responded }} de {{ t.total }} check-ins</div>
+        }
+      </header>
+      <div class="content"><router-outlet /></div>
+    } @else {
+      <div class="content">
+        <div class="card card-pad stack">
+          <h1>Não foi possível entrar</h1>
+          <span class="muted">{{ session.error() ?? 'Carregando…' }}</span>
+          <span class="muted small">Só e-mails cadastrados em um time têm acesso. Peça a um gestor para adicionar você.</span>
+        </div>
+      </div>
+    }
+  </main>
+</div>

@@ -1,0 +1,117 @@
+<div class="grid">
+  <section class="card chat-card">
+    <div class="chat-head">
+      <div class="stack tight head-text">
+        <h1 class="title">Check-in de hoje</h1>
+        <span class="muted small">Leva cerca de 3 minutos. Você confirma o resumo antes de salvar.</span>
+      </div>
+      <span class="pill" [class.pill-ok]="stage() === 'done'" [class.pill-brand]="stage() !== 'done'">{{ statusLabel() }}</span>
+    </div>
+
+    <div class="messages" #chat>
+      @for (m of messages(); track $index) {
+        @if (m.kind === 'agent') {
+          <div class="msg-agent">
+            <div class="bot">bv</div>
+            <div class="stack tight">
+              <div class="bubble agent">{{ m.text }}</div>
+              <span class="meta">Agente · {{ m.time }}</span>
+            </div>
+          </div>
+        }
+        @if (m.kind === 'user') {
+          <div class="msg-user">
+            <div class="bubble user">{{ m.text }}</div>
+            <span class="meta">Você · {{ m.time }}</span>
+          </div>
+        }
+        @if (m.kind === 'summary' && m.draft) {
+          <div class="msg-agent wide">
+            <div class="bot">bv</div>
+            <div class="summary">
+              <div class="summary-head">{{ m.text }}</div>
+              <div class="summary-body">
+                <span class="k">Feito</span><span>{{ joinSummaries(m.draft.done) }}</span>
+                <span class="k">Hoje</span><span>{{ joinSummaries(m.draft.planned) }}</span>
+                <span class="k">Impeditivo</span>
+                <div class="stack tight">
+                  @for (b of m.draft.blockers; track $index) {
+                    <span>{{ b.summary }}</span>
+                    <div class="chips">
+                      <span class="chip" [class]="'chip ' + severity[b.severity].cls">Severidade {{ severity[b.severity].label.toLowerCase() }}</span>
+                      <span class="chip">{{ category[b.category] }}</span>
+                      @if (b.needs_from) { <span class="chip">Precisa de: {{ b.needs_from }}</span> }
+                      @if (ageOf(b.existing_impediment_id); as age) { <span class="chip">Já aberto · {{ age }}</span> }
+                    </div>
+                  } @empty { <span>Nenhum</span> }
+                </div>
+                @for (r of resolvedTexts(m.draft); track r) {
+                  <span class="k">Resolvido</span><span>{{ r }}</span>
+                }
+              </div>
+              @if ($index === lastSummaryIndex() && stage() === 'summary') {
+                <div class="actions">
+                  <button class="btn btn-sm" (click)="confirm()" [disabled]="typing()">Confirmar</button>
+                  <button class="btn btn-sm btn-ghost" (click)="correct()" [disabled]="typing()">Corrigir</button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+      @if (typing()) {
+        <div class="row"><div class="bot">bv</div><span class="typing">Agente escrevendo…</span></div>
+      }
+      @if (error(); as err) { <div class="error-box">{{ err }}</div> }
+    </div>
+
+    @if (canType()) {
+      <div class="composer">
+        <textarea rows="2" [(ngModel)]="input" (keydown)="onKey($event)" placeholder="Escreva com suas palavras…"></textarea>
+        <button class="btn" (click)="send()">Enviar</button>
+      </div>
+    }
+    @if (stage() === 'done') {
+      <div class="composer done">
+        <span class="ok-text">
+          @if (confirmedAt()) { Check-in salvo às {{ confirmedAt() }}. } Ele entra no próximo report do time.
+        </span>
+        <button class="link-btn" (click)="edit()">Editar check-in</button>
+      </div>
+    }
+    @if (stage() === 'discarded') {
+      <div class="composer done">
+        <span class="ok-text">Nada foi salvo.</span>
+        <button class="link-btn" (click)="edit()">Recomeçar check-in</button>
+      </div>
+    }
+  </section>
+
+  <aside class="side-col">
+    <div class="card card-pad stack tight">
+      <span class="eyebrow">Do seu último check-in</span>
+      @if (ctx()?.previous; as prev) {
+        <div class="stack tight">
+          <span class="k">Plano de ontem · {{ dayLabel(prev.day) }}</span>
+          @for (p of prev.planned; track p) { <span>{{ p }}</span> } @empty { <span>—</span> }
+        </div>
+      } @else { <span class="muted small">Este é o seu primeiro check-in.</span> }
+      @if (ctx()?.open_impediments?.length) {
+        <div class="stack tight sep">
+          <span class="k">Seu impeditivo aberto</span>
+          @for (i of ctx()!.open_impediments; track i.id) {
+            <span>{{ i.summary }}</span>
+            <div class="chips">
+              <span class="chip" [class]="'chip ' + severity[i.severity].cls">{{ severity[i.severity].label }}</span>
+              <span class="chip">{{ i.age_label }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+    <div class="privacy">
+      <strong>Como seu check-in é usado</strong>
+      <span>Entra no report do time para destravar impeditivos. O agente não ranqueia pessoas nem mede produtividade individual. O gestor lê o report e o detalhe por pessoa.</span>
+    </div>
+  </aside>
+</div>
