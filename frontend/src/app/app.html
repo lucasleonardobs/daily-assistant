@@ -1,3 +1,6 @@
+@if (session.activationToken()) {
+  <app-activate />
+} @else {
 <div class="layout">
   <aside class="side">
     <div class="brand">
@@ -15,6 +18,7 @@
       </nav>
     }
 
+    @if (session.me() || session.devUsers().length) {
     <div class="who">
       @if (session.devUsers().length) {
         <label class="eyebrow">Visualizar como (dev)</label>
@@ -34,8 +38,15 @@
             <span>{{ session.isManager() ? 'Gestor' : 'Membro' }} · {{ session.membership()?.team_name }}</span>
           </div>
         </div>
+        @if (!session.config()?.dev_mode) {
+          <div class="row acct">
+            <a class="link-btn out" routerLink="/senha">Alterar senha</a>
+            <button class="link-btn out" (click)="session.logout()">Sair</button>
+          </div>
+        }
       }
     </div>
+    }
   </aside>
 
   <main>
@@ -53,7 +64,11 @@
           <div class="pill pill-ok live"><span class="dot"></span>{{ t.responded }} de {{ t.total }} check-ins</div>
         }
       </header>
-      <div class="content"><router-outlet /></div>
+      <div class="content">
+        @if (session.me()!.must_change_password) { <app-password /> } @else { <router-outlet /> }
+      </div>
+    } @else if (session.needsLogin()) {
+      <div class="content"><app-login /></div>
     } @else {
       <div class="content">
         <div class="card card-pad stack">
@@ -65,3 +80,4 @@
     }
   </main>
 </div>
+}

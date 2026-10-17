@@ -2,7 +2,7 @@
 export type Role = 'member' | 'manager';
 
 export interface Membership { member_id: number; team_id: string; team_name: string; role: Role; name: string; }
-export interface Me { email: string; name: string; dev_mode: boolean; memberships: Membership[]; }
+export interface Me { email: string; name: string; dev_mode: boolean; must_change_password: boolean; memberships: Membership[]; }
 export interface DevUser { email: string; name: string; roles: Role[]; }
 
 export interface ImpedimentView {
