@@ -52,10 +52,13 @@ for router in (auth.router, me.router, teams.router, cycles.router, checkin.rout
     app.include_router(router)
 
 
+RELEASE = "ci-cd-1"  # marcador que prova qual versão está no ar (veja o teste de fumaça do pipeline)
+
+
 @app.get("/api/health")
 def health():
     """Liveness: não toca no banco (o Postgres gratuito pode estar dormindo)."""
-    return {"status": "ok"}
+    return {"status": "ok", "release": RELEASE}
 
 
 @app.get("/api/health/db")

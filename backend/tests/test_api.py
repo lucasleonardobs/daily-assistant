@@ -128,3 +128,8 @@ def test_unknown_api_route_is_json_404_not_the_frontend(client, tmp_path, monkey
         handler("api/nao-existe")
     assert e.value.status_code == 404
     assert handler("painel").status_code == 200  # rota do SPA continua servindo o index.html
+
+
+def test_health_reports_release(client):
+    body = client.get("/api/health").json()
+    assert body["status"] == "ok" and body["release"]
