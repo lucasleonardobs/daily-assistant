@@ -7,7 +7,7 @@ from app.api.deps import get_db
 from app.auth import current_email
 from app.config import settings
 from app.db import repository as repo
-from app.db.models import Member, Team
+from app.db.models import Member, Team, User
 
 router = APIRouter(prefix="/api", tags=["me"])
 
@@ -20,6 +20,7 @@ def me(email: str = Depends(current_email), db: Session = Depends(get_db)):
     teams = {t.id: t for t in db.scalars(select(Team).where(Team.id.in_([m.team_id for m in memberships])))}
     return {
         "email": email, "name": memberships[0].name, "dev_mode": settings.dev_mode,
+        "must_change_password": bool((u := db.get(User, email)) and u.must_change_password),
         "memberships": [{"member_id": m.id, "team_id": m.team_id, "team_name": teams[m.team_id].name,
                          "role": m.role, "name": m.name} for m in memberships],
     }

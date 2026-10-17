@@ -37,6 +37,6 @@ def today(team: Team = Depends(team_or_404), me: Member = Depends(member_of_team
     out["resolved_today"] = [
         {"id": i.id, "summary": i.summary, "note": i.note}
         for i in db.scalars(select(Impediment).where(Impediment.team_id == team.id, Impediment.status == "RESOLVED"))
-        if i.resolved_at and i.resolved_at.astimezone(tz).date() == cycle.day]
+        if i.resolved_at and repo.as_utc(i.resolved_at).astimezone(tz).date() == cycle.day]
     out["aged_threshold_days"] = settings.aged_threshold_days
     return out

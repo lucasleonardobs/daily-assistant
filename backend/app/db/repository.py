@@ -6,11 +6,19 @@ from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import Session
 
 from app.db.models import Checkin, Impediment, Member, Report, StandupCycle, Team, utcnow
 from app.domain import rules
 from app.domain.schemas import CheckinDraft
+
+def slugify(name: str) -> str:
+    import re
+    import unicodedata
+    plain = unicodedata.normalize("NFD", name.lower()).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", plain).strip("-") or "time"
+
 
 DEFAULT_QUESTIONS = [
     "O que avançou desde o último check-in?",
@@ -48,13 +56,17 @@ def create_team(db: Session, *, team_id: str, name: str, timezone_: str, cutoff:
 # ------------------------------------------------------------------- ciclo
 
 def get_or_create_cycle(db: Session, team: Team, day: date | None = None) -> StandupCycle:
+    """O ciclo do dia nasce no primeiro acesso. Seguro sob concorrência: o painel e a tela de check-in
+    pedem o ciclo ao mesmo tempo na primeira abertura do dia, então a criação é um INSERT ... ON CONFLICT
+    DO NOTHING e não um "verifica e depois insere"."""
     day = day or today_for(team)
     cycle_id = f"{team.id}_{day.isoformat()}"
     cycle = db.get(StandupCycle, cycle_id)
     if cycle is None:
-        cycle = StandupCycle(id=cycle_id, team_id=team.id, day=day)
-        db.add(cycle)
-        db.flush()
+        insert = (postgresql if db.get_bind().dialect.name == "postgresql" else sqlite).insert
+        db.execute(insert(StandupCycle).values(id=cycle_id, team_id=team.id, day=day, status="OPEN")
+                   .on_conflict_do_nothing(index_elements=["id"]))
+        cycle = db.get(StandupCycle, cycle_id)
     return cycle
 
 
@@ -162,5 +174,11 @@ def reports_of_cycle(db: Session, cycle_id: str) -> list[Report]:
     return list(db.scalars(select(Report).where(Report.cycle_id == cycle_id).order_by(Report.version)))
 
 
+def as_utc(dt: datetime) -> datetime:
+    """O SQLite devolve datas sem fuso, que na verdade são UTC. Sem isto, astimezone() as trataria como
+    horário local da máquina e erraria o dia (por exemplo, entre 21h e 24h no Brasil)."""
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def utc_iso(dt: datetime) -> str:
-    return (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).isoformat()
+    return as_utc(dt).isoformat()

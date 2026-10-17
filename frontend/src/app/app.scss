@@ -36,3 +36,5 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .who { margin-top: 0; }
   .top, .content { padding-left: 16px; padding-right: 16px; }
 }
+.out { color: #a9b6dd; align-self: flex-start; padding-left: 4px; }
+.acct { gap: 14px; flex-wrap: nowrap; }

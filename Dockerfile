@@ -14,8 +14,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/ ./
 RUN uv sync --frozen --no-dev
 COPY --from=web /web/dist/frontend/browser ./static
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Produção: login pelo IAP (DEV_MODE=false). Bancos SQLite em /data (monte um volume).
-ENV DEV_MODE=false DB_PATH=/data/app.db SESSIONS_DB_PATH=/data/sessions.db PORT=8080
-VOLUME /data
-CMD ["sh", "-c", "uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+# Produção por padrão. Banco, segredos e chaves vêm de variáveis de ambiente (veja backend/.env.example).
+ENV DEV_MODE=false PORT=8080
+ENTRYPOINT ["docker-entrypoint.sh"]

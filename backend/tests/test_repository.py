@@ -66,3 +66,49 @@ def test_confirmed_at_is_serialized_with_timezone(db):
     db.flush()
     row = next(r for r in repo.day_status(db, cycle) if r["name"] == "Ana Souza")
     assert row["confirmed_at"].endswith("+00:00")
+
+
+def test_get_or_create_cycle_survives_concurrent_first_access(db):
+    """Regressão: painel e check-in pedem o ciclo do dia ao mesmo tempo; o segundo não pode estourar."""
+    import threading
+    from datetime import date
+
+    from app.db.session import db_session
+
+    team = db.get(repo.Team, "pagamentos")
+    day, errors, ids = date(2030, 1, 7), [], []
+    barrier = threading.Barrier(6)
+
+    def worker():
+        try:
+            barrier.wait()
+            with db_session() as s:
+                ids.append(repo.get_or_create_cycle(s, s.get(repo.Team, team.id), day).id)
+        except Exception as e:  # noqa: BLE001
+            errors.append(repr(e))
+
+    threads = [threading.Thread(target=worker) for _ in range(6)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert not errors, errors
+    assert set(ids) == {"pagamentos_2030-01-07"} and len(ids) == 6
+
+
+def test_naive_sqlite_datetimes_are_read_as_utc_not_local_time():
+    """Regressão: 01:16 UTC do dia 7 ainda é dia 6 em São Paulo. Não pode depender do relógio da máquina."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    naive_utc = datetime(2026, 10, 7, 1, 16)  # como o SQLite devolve
+    assert repo.as_utc(naive_utc).astimezone(ZoneInfo("America/Sao_Paulo")).date().isoformat() == "2026-10-06"
+    assert repo.as_utc(naive_utc).isoformat().endswith("+00:00")
+
+
+def test_gemini_3_keeps_default_temperature_but_older_models_do_not():
+    """Regressão: o Google recomenda não baixar a temperatura nos modelos Gemini 3."""
+    from agents.shared.models import generation_config
+
+    assert generation_config(0.0, model="gemini-3.1-flash-lite").temperature is None
+    assert generation_config(0.4, model="gemini-2.5-flash").temperature == 0.4
+    assert generation_config(0.4, model=object()).temperature == 0.4  # modelos injetados (testes) mantêm
+    assert generation_config(0.0, model="gemini-3.1-flash-lite").safety_settings  # filtros continuam ligados

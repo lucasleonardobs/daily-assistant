@@ -66,6 +66,8 @@ async def messages(body: MessageIn, team: Team = Depends(team_or_404), me: Membe
         raise HTTPException(403, "Sessão não pertence a você neste time.")
     if not body.text and not body.review:
         raise HTTPException(422, "Envie texto ou a resposta ao resumo.")
+    if not agent_runner.allow_checkin_message(body.session_id):
+        raise HTTPException(429, "Esta conversa atingiu o limite de mensagens. Abra um novo check-in.")
     review = body.review.model_dump() if body.review else None
     db.commit()
 

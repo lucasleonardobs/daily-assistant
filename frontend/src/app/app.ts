@@ -1,12 +1,15 @@
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { initials } from './core/labels';
+import { Activate } from './pages/activate/activate';
+import { Login } from './pages/login/login';
+import { PasswordPage } from './pages/password/password';
 import { Session } from './core/session.service';
 
 /** Casca do app: barra lateral (por papel), cabeçalho (time e data) e a página atual. */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Login, Activate, PasswordPage],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

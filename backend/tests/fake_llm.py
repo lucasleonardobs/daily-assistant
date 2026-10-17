@@ -26,4 +26,4 @@ class FakeLlm(BaseLlm):
 
     @property
     def capabilities(self):
-        return LlmCapabilities(output_schema_and_tools=True)
+        return LlmCapabilities(output_schema_and_tools=False)  # como o Gemini 3 no ADK
