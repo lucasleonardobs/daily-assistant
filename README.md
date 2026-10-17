@@ -38,7 +38,8 @@ npm start                                  # http://localhost:4200, com proxy pa
 ```
 
 Em `DEV_MODE=true` o banco é populado com o time do protótipo e a barra lateral troca de usuário
-(o front envia `X-User-Email`). Em produção, quem identifica a pessoa é o IAP.
+(o front envia `X-User-Email`). Em produção, o acesso é por **e-mail e senha**, com links de convite de uso único
+gerados pelo gestor (veja `docs/deploy-railway-aiven.md`).
 
 Conversar com os agentes isoladamente, sem o front: `cd backend && uv run adk web agents`
 (o estado `member_id`/`team_id` precisa existir na sessão; veja `load_context` em `nodes.py`).
@@ -56,7 +57,7 @@ loop de correção, fan-out/join do report, bloqueio de evidência inválida, pe
 ## Build de produção
 
 `docker build -t daily-assincrona .` gera um serviço único (Angular estático + API + agentes).
-Bancos SQLite em `/data` (monte um volume). Autenticação via IAP com `DEV_MODE=false`.
+Banco Postgres via `DATABASE_URL`. Deploy em Railway + Aiven documentado em `docs/deploy-railway-aiven.md`.
 
 ## Desvios da especificação
 
