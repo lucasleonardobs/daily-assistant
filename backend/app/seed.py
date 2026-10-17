@@ -52,7 +52,10 @@ def seed(db: Session) -> None:
 
     by_name = {m.name: m for m in repo.team_members(db, "pagamentos")}
     today = repo.today_for(pag)
-    d1, d3 = _back(today, 1), _back(today, 3)
+    # Fim de semana não conta como dia útil: ancora no último dia útil, senão o impeditivo "de 3 dias"
+    # soma só 2 dias úteis no sábado/domingo e deixa de aparecer como envelhecido.
+    anchor = today if today.weekday() < 5 else rules.previous_business_day(today)
+    d1, d3 = _back(anchor, 1), _back(anchor, 3)
 
     # Há 3 dias úteis: Ana ficou sem acesso ao staging e Diego sem homologação.
     _history(db, pag, by_name["Ana Souza"], d3, CheckinDraft(
