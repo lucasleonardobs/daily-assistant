@@ -97,3 +97,32 @@ class Report(Base):
     prompt_version: Mapped[str] = mapped_column(String)
     incomplete_review: Mapped[bool] = mapped_column(Boolean, default=False)
     feedback: Mapped[dict] = mapped_column(JSON, default=dict)  # {"a1": "useful" | "not_useful"}
+
+
+class User(Base):
+    """Credencial de acesso. Uma por e-mail; papel e times vêm da tabela `members`."""
+
+    __tablename__ = "users"
+
+    email: Mapped[str] = mapped_column(String, primary_key=True)
+    password_hash: Mapped[str] = mapped_column(String)
+    token_version: Mapped[int] = mapped_column(Integer, default=1)  # muda com a senha: derruba sessões antigas
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
+    failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Invite(Base):
+    """Link de uso único para definir (ou redefinir) a senha. Só o hash do token é guardado."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token_hash: Mapped[str] = mapped_column(String, unique=True, index=True)
+    email: Mapped[str] = mapped_column(String, index=True)
+    created_by: Mapped[str] = mapped_column(String)  # e-mail de quem gerou ("sistema" no bootstrap)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
