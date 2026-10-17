@@ -32,7 +32,7 @@ def build_workflow(conversation_model=MODEL_FAST, classifier_model=MODEL_FAST) -
         mode="task",
         instruction=prompts.CHECKIN,
         output_schema=CheckinDraft,
-        generate_content_config=generation_config(temperature=0.4),
+        generate_content_config=generation_config(temperature=0.4, model=conversation_model),
     )
 
     # Um único turno, sem conversa: rotula categoria e severidade dos bloqueios.
@@ -42,7 +42,7 @@ def build_workflow(conversation_model=MODEL_FAST, classifier_model=MODEL_FAST) -
         mode="single_turn",
         instruction=prompts.CLASSIFIER,
         output_schema=BlockerLabels,
-        generate_content_config=generation_config(temperature=0.0),
+        generate_content_config=generation_config(temperature=0.0, model=classifier_model),
     )
 
     return Workflow(

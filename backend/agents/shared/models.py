@@ -19,10 +19,16 @@ _HARM_CATEGORIES = [
 ]
 
 
-def generation_config(temperature: float = 0.2) -> types.GenerateContentConfig:
-    """Filtros de segurança do Gemini ligados + temperatura baixa (extração e análise)."""
+def generation_config(temperature: float = 0.2, model: object = None) -> types.GenerateContentConfig:
+    """Filtros de segurança do Gemini ligados e, nos modelos antigos, temperatura baixa.
+
+    Modelos Gemini 3 devem ficar na temperatura padrão (1.0): a documentação do Google avisa que valores
+    menores podem causar repetição e perda de qualidade de raciocínio. Por isso, aqui ela é omitida.
+    """
+    keeps_default_temperature = isinstance(model, str) and model.startswith("gemini-3")
     return types.GenerateContentConfig(
-        temperature=temperature,
+        temperature=None if keeps_default_temperature else temperature,
+        max_output_tokens=settings.max_output_tokens,
         safety_settings=[
             types.SafetySetting(category=c, threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE)
             for c in _HARM_CATEGORIES

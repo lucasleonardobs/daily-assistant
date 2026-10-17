@@ -28,7 +28,7 @@ def build_workflow(model=MODEL_SMART) -> Workflow:
     def llm(name: str, instruction: str, schema, temperature: float = 0.2) -> Agent:
         # single_turn: roda uma vez, sem conversar com o usuário.
         return Agent(name=name, model=model, mode="single_turn", instruction=instruction,
-                     output_schema=schema, generate_content_config=generation_config(temperature))
+                     output_schema=schema, generate_content_config=generation_config(temperature, model=model))
 
     progress_analyst = llm("progress_analyst", prompts.PROGRESS, ProgressAnalysis)
     blocker_analyst = llm("blocker_analyst", prompts.BLOCKERS, BlockerAnalysis)
