@@ -110,3 +110,21 @@ def test_checkin_flow_over_sse_and_session_isolation(client):
     assert ctx["today"]["data"]["planned"][0]["summary"] == "Integrar login com autenticação"
     status = client.get("/api/teams/pagamentos/cycles/today", headers=GESTOR).json()
     assert status["responded"] == 1
+
+
+def test_unknown_api_route_is_json_404_not_the_frontend(client, tmp_path, monkeypatch):
+    """Com o front estático montado, rotas inexistentes de /api devem dar 404 (e não o index.html)."""
+    from fastapi import HTTPException
+
+    from app import main
+    static = tmp_path / "static"
+    static.mkdir()
+    (static / "index.html").write_text("<html>spa</html>")
+    monkeypatch.setattr(main, "STATIC_DIR", static)
+    handler = next((r.endpoint for r in main.app.router.routes if getattr(r, "path", "") == "/{path:path}"), None)
+    if handler is None:
+        pytest.skip("front estático não foi compilado (backend/static ausente)")
+    with pytest.raises(HTTPException) as e:
+        handler("api/nao-existe")
+    assert e.value.status_code == 404
+    assert handler("painel").status_code == 200  # rota do SPA continua servindo o index.html

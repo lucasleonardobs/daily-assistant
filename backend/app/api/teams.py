@@ -1,12 +1,11 @@
 """Times e membros. Só gestores do time alteram."""
-import re
-import unicodedata
 from zoneinfo import ZoneInfo, available_timezones
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app import invites
 from app.api.deps import get_db, manager_of_team, member_of_team, team_or_404
 from app.auth import current_email
 from app.db import repository as repo
@@ -45,8 +44,7 @@ def create_team(body: TeamIn, email: str = Depends(current_email), db: Session =
     if not any(m.role == "manager" for m in mine):
         raise HTTPException(403, "Apenas gestores criam times.")
     _check_tz(body.timezone)
-    slug = re.sub(r"[^a-z0-9]+", "-", unicodedata.normalize("NFD", body.name.lower())
-                  .encode("ascii", "ignore").decode()).strip("-") or "time"
+    slug = repo.slugify(body.name)
     if db.get(Team, slug):
         raise HTTPException(409, "Já existe um time com esse nome.")
     team = repo.create_team(db, team_id=slug, name=body.name, timezone_=body.timezone, cutoff=body.cutoff_time,
@@ -92,3 +90,15 @@ def remove_member(member_id: int, team: Team = Depends(team_or_404), me: Member 
     target.role = "removed"
     target.email = f"removed+{target.id}@invalid"
     return _team_dict(team, [m for m in repo.team_members(db, team.id) if m.role != "removed"])
+
+
+@router.post("/{team_id}/members/{member_id}/invite")
+def invite_member(member_id: int, request: Request, team: Team = Depends(team_or_404),
+                  me: Member = Depends(manager_of_team), db: Session = Depends(get_db)):
+    """Gera o link de primeiro acesso (ou de redefinição de senha) de um membro. O link aparece uma única vez."""
+    target = db.get(Member, member_id)
+    if target is None or target.team_id != team.id or target.role == "removed":
+        raise HTTPException(404, "Membro não encontrado.")
+    token, expires = invites.create_invite(db, target.email, created_by=me.email)
+    return {"link": invites.invite_link(str(request.base_url), token), "email": target.email,
+            "expires_at": expires.isoformat()}
