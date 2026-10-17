@@ -7,3 +7,4 @@
 .avatar.me { background: var(--cyan); color: var(--navy); }
 .gray { color: var(--muted); }
 .add { padding: 16px 24px; display: flex; gap: 10px; flex-wrap: wrap; input { flex: 1; min-width: 160px; } .wide { flex: 1.4; min-width: 200px; } }
+.invite { border-color: var(--brand-line); background: var(--brand-soft); } .invite input { background: #fff; }

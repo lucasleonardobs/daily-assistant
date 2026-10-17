@@ -19,6 +19,8 @@ export class TeamPage {
   protected newMember = { name: '', email: '' };
   protected newTeamName = '';
   protected creating = signal(false);
+  protected invite = signal<{ email: string; link: string; expires_at: string } | null>(null);
+  protected copied = signal(false);
   protected message = signal<string | null>(null);
   protected error = signal<string | null>(null);
 
@@ -63,6 +65,20 @@ export class TeamPage {
       this.apply(await firstValueFrom(this.http.delete<TeamDetail>(`/api/teams/${this.team()!.id}/members/${id}`)));
       await this.session.refreshToday();
     });
+  }
+
+  /** Gera o link de primeiro acesso / redefinição de senha. Aparece uma única vez; o gestor o envia à pessoa. */
+  protected createInvite(memberId: number) {
+    return this.attempt(async () => {
+      this.copied.set(false);
+      this.invite.set(await firstValueFrom(this.http.post<{ email: string; link: string; expires_at: string }>(
+        `/api/teams/${this.team()!.id}/members/${memberId}/invite`, {})));
+    });
+  }
+
+  protected async copyInvite() {
+    await navigator.clipboard.writeText(this.invite()!.link);
+    this.copied.set(true);
   }
 
   protected createTeam() {

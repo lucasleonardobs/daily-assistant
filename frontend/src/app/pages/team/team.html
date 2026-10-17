@@ -14,6 +14,17 @@
     @if (error(); as err) { <div class="error-box">{{ err }}</div> }
     @if (message(); as msg) { <div class="ok-box">{{ msg }}</div> }
 
+    @if (invite(); as inv) {
+      <section class="card card-pad stack invite">
+        <strong>Link de acesso para {{ inv.email }}</strong>
+        <span class="muted small">Envie à pessoa por um canal seguro. Funciona <b>uma única vez</b> e expira em 72 horas.
+          Ela define a própria senha; um novo link cancela o anterior e encerra as sessões abertas dela.</span>
+        <div class="row"><input class="grow" readonly [value]="inv.link" (focus)="$any($event.target).select()" />
+          <button class="btn btn-sm" (click)="copyInvite()">{{ copied() ? 'Copiado' : 'Copiar' }}</button>
+          <button class="link-btn gray" (click)="invite.set(null)">Fechar</button></div>
+      </section>
+    }
+
     <section class="card card-pad fields">
       <label class="field">Nome do time<input [(ngModel)]="form.name" /></label>
       <label class="field">Fuso
@@ -37,12 +48,13 @@
           <div class="avatar" [class.me]="m.role === 'manager'">{{ initials(m.name) }}</div>
           <div class="grow stack tight"><strong>{{ m.name }}</strong><span class="muted small">{{ m.email }}</span></div>
           <span class="pill" [class.pill-brand]="m.role === 'manager'">{{ m.role === 'manager' ? 'Gestor' : 'Membro' }}</span>
+          <button class="link-btn" (click)="createInvite(m.id)">Link de acesso</button>
           <button class="link-btn gray" (click)="removeMember(m.id)">Remover</button>
         </div>
       }
       <div class="add">
         <input placeholder="Nome" [(ngModel)]="newMember.name" />
-        <input placeholder="E-mail Google" [(ngModel)]="newMember.email" class="wide" />
+        <input placeholder="E-mail" [(ngModel)]="newMember.email" class="wide" />
         <button class="btn btn-sm" (click)="addMember()" [disabled]="!newMember.name || !newMember.email">Adicionar</button>
       </div>
     </section>
