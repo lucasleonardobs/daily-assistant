@@ -13,8 +13,10 @@ Identidade (member_id/team_id) entra no state da sessão aqui, nunca pelo client
 import logging
 from collections.abc import AsyncIterator
 
+from google.adk.agents.run_config import RunConfig
 from google.adk.runners import Runner
 from google.adk.sessions import BaseSessionService
+from google.adk.sessions import DatabaseSessionService
 from google.adk.sessions.sqlite_session_service import SqliteSessionService
 from google.genai import types
 
@@ -22,6 +24,7 @@ from agents.checkin_agent.agent import app as checkin_app
 from agents.report_agent.agent import app as report_app
 from app.config import settings
 from app.db.models import Member
+from app.db.urls import async_url, is_postgres
 
 log = logging.getLogger("daily.agents")
 
@@ -32,14 +35,22 @@ _STEP_OF_NODE = {"load_report_context": 0, "progress_analyst": 1, "blocker_analy
                  "report_critic": 3, "review_gate": 3, "publish_report": 4}
 
 _sessions: BaseSessionService | None = None
+_message_counts: dict[str, int] = {}   # mensagens por sessão de check-in (trava de custo; zera ao reiniciar)
+_generating: set[str] = set()          # times com report em geração (evita duas gerações simultâneas)
 
 
 def sessions() -> BaseSessionService:
+    """Sessões do ADK: no mesmo Postgres do produto em produção; SQLite local em dev."""
     global _sessions
     if _sessions is None:
-        from pathlib import Path
-        Path(settings.sessions_db_path).parent.mkdir(parents=True, exist_ok=True)
-        _sessions = SqliteSessionService(settings.sessions_db_path)
+        if is_postgres(settings.database_url):
+            _sessions = DatabaseSessionService(
+                async_url(settings.database_url), pool_size=settings.db_pool_size,
+                max_overflow=settings.db_max_overflow, pool_recycle=300)
+        else:
+            from pathlib import Path
+            Path(settings.sessions_db_path).parent.mkdir(parents=True, exist_ok=True)
+            _sessions = SqliteSessionService(settings.sessions_db_path)
     return _sessions
 
 
@@ -50,6 +61,18 @@ def _runner(app) -> Runner:
 def _node_name(event) -> str:
     path = event.node_info.path if event.node_info else ""
     return path.split("/")[-1].split("@")[0] if path else ""
+
+
+# ------------------------------------------------------------ travas de custo
+
+def allow_checkin_message(session_id: str) -> bool:
+    """Conta a mensagem; False quando a conversa passou do limite (um agente em laço custaria dinheiro)."""
+    _message_counts[session_id] = _message_counts.get(session_id, 0) + 1
+    return _message_counts[session_id] <= settings.max_checkin_messages
+
+
+def report_in_progress(team_id: str) -> bool:
+    return team_id in _generating
 
 
 # ------------------------------------------------------------------- check-in
@@ -82,7 +105,8 @@ async def stream_checkin(email: str, session_id: str, *, text: str | None = None
     try:
         async for event in _runner(checkin_app).run_async(
                 user_id=email, session_id=session_id, new_message=message,
-                invocation_id=invocation_id if review else None):
+                invocation_id=invocation_id if review else None,
+                run_config=RunConfig(max_llm_calls=settings.max_llm_calls_checkin)):
             for out in _checkin_event_to_messages(event):
                 yield out
     except Exception:
@@ -116,10 +140,15 @@ async def stream_report(manager: Member) -> AsyncIterator[dict]:
         app_name=report_app.name, user_id=manager.email,
         state={"member_id": manager.id, "team_id": manager.team_id})
     step, report_id = -1, None
+    if manager.team_id in _generating:
+        yield {"type": "error", "text": "Já existe um report sendo gerado para este time."}
+        return
+    _generating.add(manager.team_id)
     try:
         async for event in _runner(report_app).run_async(
                 user_id=manager.email, session_id=session.id,
-                new_message=types.Content(role="user", parts=[types.Part(text="Gerar report")])):
+                new_message=types.Content(role="user", parts=[types.Part(text="Gerar report")]),
+                run_config=RunConfig(max_llm_calls=settings.max_llm_calls_report)):
             idx = _STEP_OF_NODE.get(_node_name(event))
             if idx is not None and idx > step:
                 step = idx
@@ -131,3 +160,5 @@ async def stream_report(manager: Member) -> AsyncIterator[dict]:
     except Exception:
         log.exception("Falha ao gerar report")
         yield {"type": "error", "text": "Não consegui gerar o report agora. Tente de novo."}
+    finally:
+        _generating.discard(manager.team_id)

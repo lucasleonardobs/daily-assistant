@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app import agent_runner
 from app.api.deps import get_db, manager_of_team, member_of_team, team_or_404
 from app.auth import current_email
+from app.config import settings
 from app.db import repository as repo
 from app.db.models import Impediment, Member, Report, Team, utcnow
 
@@ -30,8 +31,16 @@ def list_versions(team: Team = Depends(team_or_404), _: Member = Depends(member_
 
 
 @router.post("/teams/{team_id}/reports")
-async def generate(team: Team = Depends(team_or_404), me: Member = Depends(manager_of_team)):
+async def generate(team: Team = Depends(team_or_404), me: Member = Depends(manager_of_team),
+                   db: Session = Depends(get_db)):
     """Roda o grafo do report. Responde em SSE com a etapa atual e, no fim, o id do report."""
+    cycle = repo.get_or_create_cycle(db, team)
+    if len(repo.reports_of_cycle(db, cycle.id)) >= settings.max_reports_per_day:  # cada geração custa várias chamadas
+        raise HTTPException(429, f"Limite de {settings.max_reports_per_day} reports por dia atingido para este time.")
+    if agent_runner.report_in_progress(team.id):
+        raise HTTPException(409, "Já existe um report sendo gerado para este time.")
+    db.commit()
+
     async def sse():
         async for event in agent_runner.stream_report(me):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
