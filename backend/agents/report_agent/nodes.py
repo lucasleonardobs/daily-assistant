@@ -4,7 +4,7 @@ O código monta o contexto com fatos já calculados, valida a evidência e grava
 Os LLMs só interpretam e escrevem.
 """
 import json
-from datetime import timezone
+from zoneinfo import ZoneInfo
 
 from google.adk import Event
 from google.adk.agents.context import Context
@@ -56,7 +56,7 @@ def load_report_context(ctx: Context):
         imp_views = [repo.impediment_view(i, today, names, settings.aged_threshold_days) for i in open_imps]
         resolved = [i for i in db.query(Impediment).filter(Impediment.team_id == team_id,
                                                            Impediment.status == "RESOLVED")
-                    if i.resolved_at and i.resolved_at.astimezone(timezone.utc).date() >= prev_day]
+                    if i.resolved_at and repo.as_utc(i.resolved_at).astimezone(ZoneInfo(team.timezone)).date() >= prev_day]
 
         repeated, unfulfilled = [], []
         for c in todays:
