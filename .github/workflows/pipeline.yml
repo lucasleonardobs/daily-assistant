@@ -131,7 +131,8 @@ jobs:
 
       - name: Teste de fumaça (app e banco)
         run: |
-          curl --fail --silent --show-error --retry 6 --retry-delay 10 --retry-all-errors "$APP_URL/api/health"
+          # `release` só existe na versão nova: prova que o tráfego já está nela e não na anterior.
+          curl --fail --silent --show-error --retry 6 --retry-delay 10 --retry-all-errors "$APP_URL/api/health" | tee /dev/stderr | grep -q '"release"'
           echo
           curl --fail --silent --show-error --retry 6 --retry-delay 10 --retry-all-errors "$APP_URL/api/health/db"
           echo
