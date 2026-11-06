@@ -249,3 +249,23 @@ def test_postgres_urls_are_normalized_for_each_driver():
     assert is_postgres(aiven) and not is_postgres("sqlite:///x.db") and not is_postgres(None)
     assert sync_url(aiven) == "postgresql+psycopg://avnadmin:pw@host.aivencloud.com:12345/defaultdb?sslmode=require"
     assert async_url(aiven) == "postgresql+asyncpg://avnadmin:pw@host.aivencloud.com:12345/defaultdb?ssl=require"
+
+
+def test_database_down_returns_503_not_invalid_login(prod, monkeypatch):
+    """Banco fora do ar (ex.: Aiven gratuito desligado por inatividade): o login não pode parecer
+    senha errada nem 500 genérico; responde 503 com mensagem clara, e o health do banco também."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db import session as session_mod
+    from app.main import DB_UNAVAILABLE
+
+    unreachable = create_engine("sqlite:////nao/existe/banco.db")  # falha ao conectar, como o host do Aiven desligado
+    monkeypatch.setattr(session_mod, "_SessionLocal", sessionmaker(unreachable))
+
+    r = prod.post("/api/auth/login", json={"email": DIEGO, "password": PASSWORD})
+    assert r.status_code == 503
+    assert r.json()["detail"] == DB_UNAVAILABLE
+    assert r.headers["retry-after"] == "60"
+    assert prod.get("/api/health/db").status_code == 503
+    assert prod.get("/api/health").status_code == 200  # liveness segue sem tocar no banco

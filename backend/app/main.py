@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
+from sqlalchemy.exc import OperationalError
 
 from app.api import auth, checkin, cycles, me, reports, teams
 from app.bootstrap import bootstrap_if_empty, check_production_settings
@@ -48,6 +49,18 @@ async def csrf_guard(request: Request, call_next):
     return await call_next(request)
 
 
+DB_UNAVAILABLE = "O sistema está temporariamente indisponível (banco de dados fora do ar). Tente novamente em alguns minutos."
+log = logging.getLogger(__name__)
+
+
+@app.exception_handler(OperationalError)
+async def database_unavailable(request: Request, exc: OperationalError):
+    """Banco inacessível (ex.: Postgres gratuito desligado por inatividade ou ainda religando).
+    Responde 503 com mensagem clara, para não parecer senha errada nem erro do app."""
+    log.error("Banco indisponível em %s %s: %s", request.method, request.url.path, str(exc.orig or exc).strip())
+    return JSONResponse({"detail": DB_UNAVAILABLE}, status_code=503, headers={"Retry-After": "60"})
+
+
 for router in (auth.router, me.router, teams.router, cycles.router, checkin.router, reports.router):
     app.include_router(router)
 
@@ -63,6 +76,7 @@ def health():
 
 @app.get("/api/health/db")
 def health_db():
+    """Readiness: consulta o banco. Responde 503 se ele estiver fora (use para alertas de disponibilidade)."""
     from sqlalchemy import text
     with db_session() as db:
         db.execute(text("SELECT 1"))
