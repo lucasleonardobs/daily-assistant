@@ -8,6 +8,15 @@ export interface AuthConfig { dev_mode: boolean; }
 const KEY_EMAIL = 'daily.dev-email';
 const KEY_TEAM = 'daily.team';
 
+const UNAVAILABLE = 'O sistema está temporariamente indisponível. Tente novamente em alguns minutos.';
+
+/** Mensagem de erro da API. Falha de rede ou do servidor (5xx) nunca vira "senha inválida" nem mensagem genérica de login. */
+export function apiError(e: any, fallback: string): string {
+  if (typeof e?.error?.detail === 'string') return e.error.detail;
+  if (e?.status === 0 || e?.status >= 500) return UNAVAILABLE;
+  return fallback;
+}
+
 /** Quem está logado, em qual time e o estado do dia. Um único lugar para o resto do app consultar. */
 @Injectable({ providedIn: 'root' })
 export class Session {
@@ -52,7 +61,7 @@ export class Session {
     } catch (e: any) {
       this.me.set(null);
       this.needsLogin.set(e?.status === 401 && !this.config()?.dev_mode);
-      this.error.set(e?.error?.detail ?? 'Não foi possível entrar.');
+      this.error.set(apiError(e, 'Não foi possível entrar.'));
     }
   }
 
@@ -63,7 +72,7 @@ export class Session {
       await this.load();
       return this.me() ? null : this.error();
     } catch (e: any) {
-      return e?.error?.detail ?? 'Não foi possível entrar.';
+      return apiError(e, 'Não foi possível entrar.');
     }
   }
 
@@ -75,7 +84,7 @@ export class Session {
       await this.load();
       return null;
     } catch (e: any) {
-      return e?.error?.detail ?? 'Não foi possível definir a senha.';
+      return apiError(e, 'Não foi possível definir a senha.');
     }
   }
 
@@ -85,7 +94,7 @@ export class Session {
       await this.load();
       return null;
     } catch (e: any) {
-      return e?.error?.detail ?? 'Não foi possível trocar a senha.';
+      return apiError(e, 'Não foi possível trocar a senha.');
     }
   }
 
